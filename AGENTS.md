@@ -1,38 +1,38 @@
 # AGENTS.md — HakiOS for Xiaomi Redmi 9 (lancelot / MT6769T)
 
 You are porting HakiOS from Samsung Galaxy A32 4G (SM-A325F) to **Xiaomi Redmi 9 (`lancelot`)**.
-Both devices share the same SoC (**MediaTek Helio G80 / MT6769T**), GPU (**Mali-G52 MC2**), PMIC (**MT6358**), and **eMMC** storage.
-However, board-level peripherals, bootloader headers, and memory maps differ.
+This repository is placed inside the common HakiOS tree at `~/hakios/devices/xiaomi-lancelot` (or `devices/redmi-9`), alongside `~/hakios/xnuloader`, `~/hakios/xnu-src`, and `~/hakios/userland`.
 
-## Hardware Differences (A32 -> Redmi 9 `lancelot`)
-1. **Bootloader & Image Format**:
-   - A32 uses Samsung LK with Samsung-specific headers/signatures.
-   - Redmi 9 uses Xiaomi/MediaTek LK with standard AOSP `boot.img` v2 headers and `vbmeta`.
-2. **Display & Backlight**:
-   - A32: 1080x2400 Super AMOLED (MIPI DSI Command Mode, DCS brightness).
-   - Redmi 9: 1080x2340 IPS LCD (MIPI DSI Video Mode + external I2C/PWM backlight IC like LM3697/KTD3136 or PMIC WLED).
-3. **Touchscreen**:
-   - A32 uses Samsung touch controller on GPIO4 + VCAMA2.
-   - Redmi 9 uses Novatek NT36672A, FocalTech FT8719, or Ilitek (often requires host-download firmware via `tools/mktouchfw.py`). Check the local dump files for the exact IC.
-4. **Memory Map (DRAM)**:
-   - Update XNU carved-out RAM addresses (`0xd1600000` on A32) based on Redmi 9's `/proc/iomem` and device tree so we don't collide with ATF, SCP, or modem reserved regions.
+## Shared SoC vs. Board Differences (A32 -> Redmi 9 `lancelot`)
+Both phones share **MediaTek Helio G80 (MT6769T)**, **Mali-G52 MC2**, **MT6358 PMIC**, and **eMMC** (non-A/B partition scheme: `boot`, `userdata`, `xnusys`).
+Key differences you MUST adapt:
+1. **Boot Image & Chainloading (`tools/chainboot.py`)**:
+   - A32 uses Samsung LK headers/signatures.
+   - Redmi 9 uses Xiaomi/MediaTek LK with standard AOSP `boot.img` v2 headers and `vbmeta`. Ensure `chainboot.py` preserves Redmi 9's kernel/ramdisk/tags load addresses and offsets.
+2. **Display Panel & Frame Pumping (`mtkloader/`, `kernel/`)**:
+   - **A32**: 1080x2400 Super AMOLED in **MIPI DSI Command Mode** (uses `mtk_kick=1 te_sync=1`, DCS brightness).
+   - **Redmi 9**: 1080x2340 IPS LCD in **MIPI DSI Video Mode** + external I2C/PWM backlight driver (e.g., LM3697 / KTD3136 / PMIC WLED).
+   - Video Mode panels scan out continuously via DMA/OVL/RDMA without manual `mtk_kick` commands. Update framebuffer dimensions to `1080x2340` (and adjust default `fbwidth`/`fbheight`, e.g., `810x1755` or `1080x2340` with `fbscale=3` so the iOS status bar does not break).
+3. **Touchscreen (`kernel/`, `tools/mktouchfw.py`)**:
+   - A32 uses Samsung touch IC on GPIO4 + VCAMA2.
+   - Redmi 9 ships with Novatek NT36672A, FocalTech FT8719, or Ilitek (usually requiring host-download firmware via `mktouchfw.py`). Identify the exact IC, I2C/SPI bus, INT/RESET GPIOs, and MT6358 LDO rails from `local_dumps/`.
+4. **Memory Map & Peripherals (`mtkloader/`, `kernel/`, `device.conf`)**:
+   - Update carved-out XNU RAM regions (`0xd1600000` on A32) based on Redmi 9's `/proc/iomem` and `redmi9.dts` so XNU does not overlap with ATF, SCP, or modem memory.
+   - Verify `buttons=2` (KPAD/GPIO keys) and `battery=2` (MT6358 fuel gauge / charger IC) against Redmi 9 DTS.
 
 ## Strict Safety & Repo Rules
-- **NEVER commit** stock `boot.img`, `.dts`/`.dtb` dumps, touch firmware binaries, Apple IPSW files, or serial numbers to git (keep them in a gitignored `local_dumps/` folder).
-- **NEVER flash** anything other than `boot` (and `xnusys` when updating rootfs). Redmi 9 is a non-A/B device (`boot`, no `boot_a`/`boot_b`).
-- **NEVER raise** CPU/GPU voltages in PMIC/clock setup.
-- **Keep eMMC read-only** (`emmc_root=1`) unless explicitly instructed otherwise.
-- **No GPL copy-pasting**: You may read Linux kernel sources for `lancelot` to extract register addresses, I2C addresses, and init sequences, but write clean MIT/APSL-2.0 code.
-- **Incremental bring-up**: Always gate new hardware init behind numbered boot-args (e.g. `touchscreen=1`, `backlight=1`) and log every register read/write step to pstore.
+- **NEVER commit** stock `boot.img`, `.dts`/`.dtb` dumps, GPT backups, touch firmware, Apple IPSW files, or device serials to git. Keep all phone dumps in `local_dumps/` (add to `.gitignore`).
+- **NEVER write** any partition other than `boot` (and `xnusys` only once during initial setup).
+- **NEVER raise** CPU/GPU voltages in `mtk_cpufreq` or PMIC setup.
+- **Keep eMMC read-only** (`emmc_root=1`).
+- **No GPL copy-pasting**: You may inspect Linux kernel sources for `lancelot` to find register offsets, DSI init sequences, and I2C addresses, then write clean MIT (`mtkloader/`, `tools/`, `diag/`) or APSL-2.0 (`kernel/`) code.
+- **Incremental bring-up**: Gate every hardware step behind numbered boot-args (`touchscreen=1`, `backlight=1`, etc.) and print register read/write outcomes to `pstore` (`/sys/fs/pstore/console-ramoops-2`).
 
-## Workflow for AI Agent
-1. First, inspect the entire repository (`mtkloader/`, `kernel/`, `tools/`, `diag/`, `device.conf`) to understand how A32 hardware is initialized.
-2. Check `local_dumps/` (if present) for `iomem.txt`, `input_devices.txt`, `redmi9.dts`, and `stock-boot.img`. If missing, generate a single shell script `tools/dump_device.sh` for the user to run via `adb` to collect them automatically.
-3. Adapt `tools/chainboot.py` for Xiaomi `boot.img` v2 format first.
-4. Adapt `diag/` and `mtkloader/` for 1080x2340 framebuffer + Redmi 9 backlight/display keep-alive, and verify via pstore logs.
-5. Port buttons, touchscreen, and verify `mali=1` addresses.
-
-
+## Agent Execution Plan
+1. **Audit**: Inspect all files in `mtkloader/`, `kernel/`, `tools/`, `diag/`, `device.conf`, and `INSTALL.md` to map every hardcoded A32 address, resolution (`2400`), and hardware init step.
+2. **Data Collection Script**: Create `local_dumps/` (gitignored) and write `tools/dump_device.sh` to automatically pull `stock-boot.img`, `dtbo.img`, `/proc/iomem`, `/proc/bus/input/devices`, `/sys/firmware/devicetree/base` (compiled or raw), `dmesg`, and `/sys/block/mmcblk0/size` from the connected Redmi 9 via `adb`.
+3. **Port Stage 1 (Chainboot + Display + Logs)**: Once `local_dumps/` is populated, adapt `tools/chainboot.py`, `diag/`, and `mtkloader/` for Redmi 9 `boot.img`, 1080x2340 IPS display/backlight, and `pstore` logging.
+4. **Port Stage 2 (XNU Boot + Peripherals)**: Update RAM map, `device.conf`, `buttons`, `touchscreen`, `battery`, and verify `mali=1` + `gl=1`.
 
 
 Original:
