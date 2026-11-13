@@ -1,7 +1,9 @@
-# hakios-a32
+# ios-lancelot
 
-HakiOS for the **Samsung Galaxy A32 4G (SM-A325F)**: MediaTek Helio G80 (**MT6769T**), GPU
-**Mali-G52 MC2**, eMMC. iOS 16.5's own user space (launchd → backboardd → SpringBoard → apps)
+HackiOS for the **Redmi 9**: MediaTek Helio G80 (**MT6769T**), GPU
+**Mali-G52 MC2**, eMMC.
+
+Fork of HakiOS for Samsung A32, which has iOS 16.5's own user space (launchd → backboardd → SpringBoard → apps)
 on Apple's open XNU kernel (xnu-8796.121.2), with this phone's own loader and drivers.
 
 The A32 is a **legacy non-A/B** phone: its boot partition is `boot` (there is no `boot_a`
