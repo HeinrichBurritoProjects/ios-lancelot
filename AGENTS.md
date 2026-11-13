@@ -1,3 +1,41 @@
+# AGENTS.md — HakiOS for Xiaomi Redmi 9 (lancelot / MT6769T)
+
+You are porting HakiOS from Samsung Galaxy A32 4G (SM-A325F) to **Xiaomi Redmi 9 (`lancelot`)**.
+Both devices share the same SoC (**MediaTek Helio G80 / MT6769T**), GPU (**Mali-G52 MC2**), PMIC (**MT6358**), and **eMMC** storage.
+However, board-level peripherals, bootloader headers, and memory maps differ.
+
+## Hardware Differences (A32 -> Redmi 9 `lancelot`)
+1. **Bootloader & Image Format**:
+   - A32 uses Samsung LK with Samsung-specific headers/signatures.
+   - Redmi 9 uses Xiaomi/MediaTek LK with standard AOSP `boot.img` v2 headers and `vbmeta`.
+2. **Display & Backlight**:
+   - A32: 1080x2400 Super AMOLED (MIPI DSI Command Mode, DCS brightness).
+   - Redmi 9: 1080x2340 IPS LCD (MIPI DSI Video Mode + external I2C/PWM backlight IC like LM3697/KTD3136 or PMIC WLED).
+3. **Touchscreen**:
+   - A32 uses Samsung touch controller on GPIO4 + VCAMA2.
+   - Redmi 9 uses Novatek NT36672A, FocalTech FT8719, or Ilitek (often requires host-download firmware via `tools/mktouchfw.py`). Check the local dump files for the exact IC.
+4. **Memory Map (DRAM)**:
+   - Update XNU carved-out RAM addresses (`0xd1600000` on A32) based on Redmi 9's `/proc/iomem` and device tree so we don't collide with ATF, SCP, or modem reserved regions.
+
+## Strict Safety & Repo Rules
+- **NEVER commit** stock `boot.img`, `.dts`/`.dtb` dumps, touch firmware binaries, Apple IPSW files, or serial numbers to git (keep them in a gitignored `local_dumps/` folder).
+- **NEVER flash** anything other than `boot` (and `xnusys` when updating rootfs). Redmi 9 is a non-A/B device (`boot`, no `boot_a`/`boot_b`).
+- **NEVER raise** CPU/GPU voltages in PMIC/clock setup.
+- **Keep eMMC read-only** (`emmc_root=1`) unless explicitly instructed otherwise.
+- **No GPL copy-pasting**: You may read Linux kernel sources for `lancelot` to extract register addresses, I2C addresses, and init sequences, but write clean MIT/APSL-2.0 code.
+- **Incremental bring-up**: Always gate new hardware init behind numbered boot-args (e.g. `touchscreen=1`, `backlight=1`) and log every register read/write step to pstore.
+
+## Workflow for AI Agent
+1. First, inspect the entire repository (`mtkloader/`, `kernel/`, `tools/`, `diag/`, `device.conf`) to understand how A32 hardware is initialized.
+2. Check `local_dumps/` (if present) for `iomem.txt`, `input_devices.txt`, `redmi9.dts`, and `stock-boot.img`. If missing, generate a single shell script `tools/dump_device.sh` for the user to run via `adb` to collect them automatically.
+3. Adapt `tools/chainboot.py` for Xiaomi `boot.img` v2 format first.
+4. Adapt `diag/` and `mtkloader/` for 1080x2340 framebuffer + Redmi 9 backlight/display keep-alive, and verify via pstore logs.
+5. Port buttons, touchscreen, and verify `mali=1` addresses.
+
+
+
+
+Original:
 # AGENTS.md
 
 Notes for AI coding agents (and people) working in this repository: what it is, how it is
