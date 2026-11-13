@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include "font8x16.h"
 
-#define RAMOOPS_CONSOLE      0x4d09f000ULL
+#define RAMOOPS_CONSOLE      0x4d05f000ULL //0x4d09f000ULL
 #define RAMOOPS_CONSOLE_SIZE 0x40000u
 #define RAMOOPS_SIG          0x43474244u
 
