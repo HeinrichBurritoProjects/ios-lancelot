@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include "font8x16.h"
 
-#define RAMOOPS_CONSOLE      0x4d05f000ULL //0x4d09f000ULL
+#define RAMOOPS_CONSOLE      0x4d05f000ULL /* 0x4d09f000ULL */
 #define RAMOOPS_CONSOLE_SIZE 0x40000u
 #define RAMOOPS_SIG          0x43474244u
 
@@ -32,8 +32,8 @@
 #define TOPRGU_SWRST_KEY     0x1209u
 
 /* LK's framebuffer (mblock "framebuffer"), the layer LK shows the logo on. */
-#define LK_FB_BASE           0x7c720000ULL  /* SM-A325F, 1080 x 2400, pitch 4352 */
-#define LK_FB_SIZE           0x022e0000ULL
+#define LK_FB_BASE           /* 0x7c720000ULL */ 0x70000000ULL /* SM-A325F, 1080 x 2400, pitch 4352 */
+#define LK_FB_SIZE           /* 0x022e0000ULL */ 0x10000000ULL
 #define LK_FB_PITCH          4352u
 #define PANEL_W              1080u
 #define PANEL_H              2340u
