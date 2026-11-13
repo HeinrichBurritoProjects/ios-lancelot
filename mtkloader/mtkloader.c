@@ -954,7 +954,7 @@ static uint32_t build_device_tree(uint64_t dt_pa, uint64_t rd_pa, uint64_t rd_si
 	dt_prop_u32(&w, "#size-cells", 2);
 
 	dt_begin(&w, "chosen");
-	dt_prop_str(&w, "darwin-board", "a32");
+	dt_prop_str(&w, "darwin-board", "lancelot");
 	dt_prop(&w, "random-seed", seed, sizeof(seed));
 	dt_prop_u64(&w, "dram-base", XNU_PHYS_BASE);
 	dt_prop_u64(&w, "dram-size", XNU_MEM_SIZE);
