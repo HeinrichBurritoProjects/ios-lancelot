@@ -36,7 +36,7 @@
 #define LK_FB_SIZE           0x022e0000ULL
 #define LK_FB_PITCH          4352u
 #define PANEL_W              1080u
-#define PANEL_H              2400u
+#define PANEL_H              2340u
 
 #define DISP_MUTEX_EN        0x14001020ULL
 #define DISP_MUTEX_SOF       0x1400102cULL
